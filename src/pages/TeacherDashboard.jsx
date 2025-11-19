@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
-import api from "../api/api";
+import api from "../services/api";
 
 export default function TeacherDashboard() {
     const { user, logout } = useContext(AuthContext);
