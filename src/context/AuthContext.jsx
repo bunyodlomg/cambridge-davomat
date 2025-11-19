@@ -15,13 +15,14 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const telegramLogin = async (telegramData) => {
-        const res = await api.post("/auth/telegram-login", telegramData);
+    const telegramLogin = async (telegramUser) => {
+        const res = await api.post("/auth/telegram-login", telegramUser);
         const { token, user } = res.data;
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
         setAuthToken(token);
         setUser(user);
+        return res.data;
     };
 
     const logout = () => {
