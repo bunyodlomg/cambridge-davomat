@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
-import api, { setAuthToken } from "../services/api";
+import api, { setAuthToken } from "../api/api";
 
 export const AuthContext = createContext();
 
@@ -15,14 +15,18 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const telegramLogin = async (telegramUser) => {
-        const res = await api.post("/auth/telegram-login", telegramUser);
-        const { token, user } = res.data;
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-        setAuthToken(token);
-        setUser(user);
-        return res.data;
+    const telegramLogin = async (telegramData) => {
+        try {
+            const res = await api.post("/auth/telegram-login", telegramData);
+            const { token, user } = res.data;
+            localStorage.setItem("token", token);
+            localStorage.setItem("user", JSON.stringify(user));
+            setAuthToken(token);
+            setUser(user);
+        } catch (err) {
+            console.log(err.response?.data || err.message);
+            alert("Login xatosi");
+        }
     };
 
     const logout = () => {
