@@ -1,5 +1,5 @@
 import { createContext, useState, useContext } from "react";
-import axios from "../api/axiosConfig"; // Axios konfiguratsiyasi
+import axios from "axios";
 
 const AuthContext = createContext();
 
@@ -7,11 +7,12 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem("token") || null);
 
-    // Oddiy login (backenddan token bilan)
-    const login = (userData, token) => {
-        setUser(userData);
-        setToken(token);
-        localStorage.setItem("token", token);
+    const telegramLogin = async (userData) => {
+        const res = await axios.post("http://localhost:5000/api/auth/telegram-login", userData);
+        setUser(res.data.user);
+        setToken(res.data.token);
+        localStorage.setItem("token", res.data.token);
+        return res.data;
     };
 
     const logout = () => {
@@ -20,20 +21,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
     };
 
-    // Telegram login funksiyasi
-    const telegramLogin = async (userData) => {
-        try {
-            const res = await axios.post("/auth/telegram-login", userData);
-            login(userData, res.data.token);
-            return res.data;
-        } catch (err) {
-            console.error("Telegram login error:", err);
-            throw err;
-        }
-    };
-
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, telegramLogin }}>
+        <AuthContext.Provider value={{ user, token, telegramLogin, logout }}>
             {children}
         </AuthContext.Provider>
     );
