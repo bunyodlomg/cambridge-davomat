@@ -1,49 +1,42 @@
-import React, { createContext, useState, useEffect } from "react";
-import api, { setAuthToken } from "../services/api";
-import { useNavigate } from "react-router-dom";
+import { createContext, useState, useContext } from "react";
+import axios from "../api/axiosConfig"; // Axios konfiguratsiyasi
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const navigate = useNavigate();
+    const [token, setToken] = useState(localStorage.getItem("token") || null);
 
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            setAuthToken(token);
-            const userData = JSON.parse(localStorage.getItem("user"));
-            setUser(userData);
-        }
-    }, []);
-
-    const telegramLogin = async (telegramData) => {
-        try {
-            const res = await api.post("/auth/telegram-login", telegramData);
-            const { token, user } = res.data;
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(user));
-
-            setAuthToken(token);
-            setUser(user);
-            navigate("/dashboard");
-        } catch (err) {
-            console.log(err.response?.data || err.message);
-            alert("Login xatosi");
-        }
+    // Oddiy login (backenddan token bilan)
+    const login = (userData, token) => {
+        setUser(userData);
+        setToken(token);
+        localStorage.setItem("token", token);
     };
 
     const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         setUser(null);
-        setAuthToken(null);
-        navigate("/");
+        setToken(null);
+        localStorage.removeItem("token");
+    };
+
+    // Telegram login funksiyasi
+    const telegramLogin = async (userData) => {
+        try {
+            const res = await axios.post("/auth/telegram-login", userData);
+            login(userData, res.data.token);
+            return res.data;
+        } catch (err) {
+            console.error("Telegram login error:", err);
+            throw err;
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ user, telegramLogin, logout }}>
+        <AuthContext.Provider value={{ user, token, login, logout, telegramLogin }}>
             {children}
         </AuthContext.Provider>
     );
 };
+
+export const useAuth = () => useContext(AuthContext);
