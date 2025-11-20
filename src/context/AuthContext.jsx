@@ -1,10 +1,12 @@
 import React, { createContext, useState, useEffect } from "react";
 import api, { setAuthToken } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -21,8 +23,10 @@ export const AuthProvider = ({ children }) => {
             const { token, user } = res.data;
             localStorage.setItem("token", token);
             localStorage.setItem("user", JSON.stringify(user));
+
             setAuthToken(token);
             setUser(user);
+            navigate("/dashboard");
         } catch (err) {
             console.log(err.response?.data || err.message);
             alert("Login xatosi");
@@ -34,6 +38,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("user");
         setUser(null);
         setAuthToken(null);
+        navigate("/");
     };
 
     return (

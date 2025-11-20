@@ -10,13 +10,7 @@ export default function AppRoutes() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            setAuthToken(token);
-            const userData = JSON.parse(localStorage.getItem("user"));
-            setUser(userData);
-        }
-
+        // user load bo‘lganidan keyin loading ni o‘chirish
         setLoading(false);
     }, [user]);
 
