@@ -1,18 +1,23 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
 
 function App() {
+  const user = JSON.parse(localStorage.getItem("user"));
+
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <Routes>
+      <Route path="/" element={<LoginPage />} />
+
+      {/* Protected routes */}
+      <Route path="/admin" element={
+        user?.role === "admin" ? <AdminDashboard /> : <Navigate to="/" />
+      } />
+
+      <Route path="/teacher" element={
+        user?.role === "teacher" ? <TeacherDashboard /> : <Navigate to="/" />
+      } />
+    </Routes>
   );
 }
 
