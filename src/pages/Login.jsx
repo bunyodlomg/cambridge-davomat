@@ -17,7 +17,6 @@ export default function Login() {
         script.setAttribute("data-size", "large");
         script.setAttribute("data-request-access", "write");
         script.setAttribute("data-onauth", "onTelegramAuth(user)");
-        script.setAttribute("data-auth-url", "data-auth-url='http://localhost:5000/api/auth/telegram-login'");
 
         container.appendChild(script);
 
