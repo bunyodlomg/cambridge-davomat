@@ -1,3 +1,5 @@
+import React from "react";
+
 import { NavLink } from "react-router-dom";
 import { FaHome, FaUserGraduate, FaChalkboardTeacher, FaLayerGroup, FaClipboardList } from "react-icons/fa";
 

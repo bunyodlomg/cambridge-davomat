@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import Table from "../components/Table";
 import axios from "axios";

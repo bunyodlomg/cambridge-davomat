@@ -1,3 +1,5 @@
+import React from "react";
+
 import Card from "../components/Card";
 import { FaUserGraduate, FaChalkboardTeacher, FaLayerGroup } from "react-icons/fa";
 
