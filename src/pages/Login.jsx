@@ -1,8 +1,10 @@
 import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { FaUserTie, FaChalkboardTeacher } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+    const navigate = useNavigate();
     const { login } = useContext(AuthContext);
     const [role, setRole] = useState(null); // admin yoki teacher
     const [email, setEmail] = useState("");
@@ -42,11 +44,14 @@ export default function Login() {
 
                 alert("Telegram login muvaffaqiyatli!");
                 console.log("Telegram Login success:", res);
+
+                navigate("/dashboard"); // ✅ yo‘naltirish
             } catch (err) {
                 console.error("Telegram Login error:", err);
                 alert(err.response?.data?.message || "Telegram login failed");
             }
         };
+
 
         return () => {
             container.innerHTML = "";
@@ -66,6 +71,9 @@ export default function Login() {
 
             alert("Admin login muvaffaqiyatli!");
             console.log("Admin Login success:", res);
+
+            // ✅ login muvaffaqiyatli bo‘lgandan keyin dashboardga yo‘naltirish
+            navigate("/dashboard");
         } catch (err) {
             console.error("Admin Login error:", err);
             alert(err.response?.data?.message || "Login failed");
