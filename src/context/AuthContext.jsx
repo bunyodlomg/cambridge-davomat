@@ -6,11 +6,22 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
 
-    const telegramLogin = async (telegramUser) => {
-        const res = await axiosInstance.post("/auth/telegram-login", telegramUser);
-        setUser(res.data.user);
-        localStorage.setItem("token", res.data.token);
-        return res.data;
+    const login = async ({ role, email, password, telegramUser }) => {
+        if (role === "admin" || role === "superadmin") {
+            // Admin login (email + password)
+            const res = await axiosInstance.post("/auth/admin-login", { email, password });
+            setUser(res.data.user);
+            localStorage.setItem("token", res.data.token);
+            return res.data;
+        } else if (role === "teacher") {
+            // Teacher login (Telegram)
+            const res = await axiosInstance.post("/auth/telegram-login", telegramUser);
+            setUser(res.data.user);
+            localStorage.setItem("token", res.data.token);
+            return res.data;
+        } else {
+            throw new Error("Invalid role for login");
+        }
     };
 
     const logout = () => {
@@ -19,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, telegramLogin, logout }}>
+        <AuthContext.Provider value={{ user, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
