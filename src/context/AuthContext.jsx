@@ -7,21 +7,21 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
 
     const login = async ({ role, email, password, telegramUser }) => {
-        if (role === "admin" || role === "superadmin") {
-            // Admin login (email + password)
-            const res = await axiosInstance.post("/auth/admin-login", { email, password });
-            setUser(res.data.user);
-            localStorage.setItem("token", res.data.token);
-            return res.data;
-        } else if (role === "teacher") {
-            // Teacher login (Telegram)
-            const res = await axiosInstance.post("/auth/telegram-login", telegramUser);
-            setUser(res.data.user);
-            localStorage.setItem("token", res.data.token);
-            return res.data;
-        } else {
+        let res;
+
+        if (role === "admin") {
+            res = await axiosInstance.post("/auth/admin-login", { email, password });
+        } 
+        else if (role === "teacher") {
+            res = await axiosInstance.post("/auth/telegram-login", telegramUser);
+        } 
+        else {
             throw new Error("Invalid role for login");
         }
+
+        setUser(res.data.user);
+        localStorage.setItem("token", res.data.token);
+        return res.data;
     };
 
     const logout = () => {

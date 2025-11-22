@@ -3,14 +3,14 @@ import { AuthContext } from "../context/AuthContext";
 import { FaUserTie, FaChalkboardTeacher } from "react-icons/fa";
 
 export default function Login() {
-    const { telegramLogin, loginWithPassword } = useContext(AuthContext);
+    const { login } = useContext(AuthContext);
     const [role, setRole] = useState(null); // admin yoki teacher
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
     // Telegram widget faqat teacher tanlaganda ishlaydi
     useEffect(() => {
-        if (!role || role !== "teacher") return;
+        if (role !== "teacher") return;
 
         const container = document.getElementById("telegram-button-container");
         if (!container) return;
@@ -29,14 +29,17 @@ export default function Login() {
 
         window.onTelegramAuthCallback = async function (user) {
             try {
-                const res = await telegramLogin({
-                    id: user.id,
-                    first_name: user.first_name,
-                    last_name: user.last_name || "",
-                    username: user.username || "",
-                    photo_url: user.photo_url || "",
-                    role,
+                const res = await login({
+                    role: "teacher",
+                    telegramUser: {
+                        id: user.id,
+                        first_name: user.first_name,
+                        last_name: user.last_name || "",
+                        username: user.username || "",
+                        photo_url: user.photo_url || ""
+                    }
                 });
+
                 alert("Telegram login muvaffaqiyatli!");
                 console.log("Telegram Login success:", res);
             } catch (err) {
@@ -49,13 +52,18 @@ export default function Login() {
             container.innerHTML = "";
             delete window.onTelegramAuthCallback;
         };
-    }, [role, telegramLogin]);
+    }, [role, login]);
 
     // Admin login handler
-    const handlePasswordLogin = async (e) => {
+    const handleAdminLogin = async (e) => {
         e.preventDefault();
         try {
-            const res = await loginWithPassword({ email, password, role });
+            const res = await login({
+                role: "admin",
+                email,
+                password
+            });
+
             alert("Admin login muvaffaqiyatli!");
             console.log("Admin Login success:", res);
         } catch (err) {
@@ -70,11 +78,9 @@ export default function Login() {
                 <h1 className="text-4xl font-extrabold text-green-600 mb-4 text-center">
                     Cambridge Davomat
                 </h1>
-                <p p className="text-gray-500 mb-8 text-center">
-                    {role == null ?
-                        "Tizimga kirishdan oldin rolni tanlang"
-                        : ""
-                    }
+
+                <p className="text-gray-500 mb-8 text-center">
+                    {!role ? "Tizimga kirishdan oldin rolni tanlang" : ""}
                 </p>
 
                 {/* Role tanlash */}
@@ -102,7 +108,7 @@ export default function Login() {
                 {role === "admin" && (
                     <form
                         className="w-full flex flex-col items-center gap-4"
-                        onSubmit={handlePasswordLogin}
+                        onSubmit={handleAdminLogin}
                     >
                         <input
                             type="email"
@@ -147,6 +153,6 @@ export default function Login() {
                     </button>
                 )}
             </div>
-        </div >
+        </div>
     );
 }
