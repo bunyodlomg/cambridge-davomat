@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../../context/AuthContext";
 import { FaUserTie, FaChalkboardTeacher } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
