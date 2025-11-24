@@ -19,6 +19,8 @@ export const AuthProvider = ({ children }) => {
                 setUser(res.data.user);
             } catch (err) {
                 localStorage.removeItem("token");
+                console.log('reset');
+                
             } finally {
                 setLoading(false);
             }
@@ -27,6 +29,8 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async ({ role, email, password, telegramUser }) => {
+        console.log(email, password);
+        
         let res;
         if (role === "admin" || role === "superadmin") {
             res = await axiosInstance.post("/auth/admin-login", { email, password });
