@@ -32,15 +32,13 @@ export default function Login() {
 
         window.onTelegramAuthCallback = async function (user) {
             try {
-                await login({
-                    role: "teacher",
-                    telegramUser: user
-                });
-                navigate("/dashboard");
+                const res = await login({ role: "teacher", telegramUser: user });
+                navigate("/teacher");
             } catch (err) {
                 alert(err.response?.data?.message || "Telegram login failed");
             }
         };
+
 
         return () => {
             container.innerHTML = "";
@@ -54,12 +52,18 @@ export default function Login() {
     const handleAdminLogin = async (e) => {
         e.preventDefault();
         try {
-            await login({ role: "admin", email, password });
-            navigate("/dashboard");
+            const res = await login({ role: "admin", email, password });
+
+            // Rolga qarab yo'naltirish
+            if (res.user.role === "superadmin") navigate("/superadmin");
+            else if (res.user.role === "admin") navigate("/admin");
+            else navigate("/"); // default
         } catch (err) {
             alert(err.response?.data?.message || "Login failed");
         }
     };
+
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[url('https://wallpaperaccess.com/full/366398.jpg')] bg-cover bg-center">

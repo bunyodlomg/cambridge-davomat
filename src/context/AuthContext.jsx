@@ -7,7 +7,6 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Refresh qilinganda token bilan userni tekshirish
     useEffect(() => {
         const checkUser = async () => {
             const token = localStorage.getItem("token");
@@ -16,7 +15,7 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
             try {
-                const res = await axiosInstance.get("/auth/me"); // backendda /auth/me endpoint kerak
+                const res = await axiosInstance.get("/auth/me");
                 setUser(res.data.user);
             } catch (err) {
                 localStorage.removeItem("token");
@@ -29,16 +28,18 @@ export const AuthProvider = ({ children }) => {
 
     const login = async ({ role, email, password, telegramUser }) => {
         let res;
-        if (role === "admin") {
+        if (role === "admin" || role === "superadmin") {
             res = await axiosInstance.post("/auth/admin-login", { email, password });
         } else if (role === "teacher") {
             res = await axiosInstance.post("/auth/telegram-login", telegramUser);
         } else {
             throw new Error("Invalid role for login");
         }
+
         setUser(res.data.user);
         localStorage.setItem("token", res.data.token);
-        return res.data;
+
+        return res.data; // navigate bu yerda qilinmaydi
     };
 
     const logout = () => {

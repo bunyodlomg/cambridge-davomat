@@ -1,35 +1,58 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import Login from "../pages/auth/Login";
-import Dashboard from "../pages/Dashboard";
-import Students from "../pages/Students";
-import Teachers from "../pages/Teachers";
-import Groups from "../pages/Groups";
-import Attendance from "../pages/Attendance";
-import MainLayout from "../layout/MainLayout";
-import ProtectedRoute from "../components/ProtectedRoute";
+import TeacherDashboard from "../pages/teacher/TeacherDashboard";
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import SuperAdminDashboard from "../pages/superadmin/superAdminDashboard";
 
-const AppRoutes = () => (
-    <Routes>
-        <Route path="/login" element={<Login />} />
+const AppRoutes = () => {
+    const { user } = useContext(AuthContext);
 
-        <Route
-            path="/"
-            element={
-                <ProtectedRoute>
-                    <MainLayout />
-                </ProtectedRoute>
-            }
-        >
-            <Route index element={<Dashboard />} />
-            <Route path="students" element={<Students />} />
-            <Route path="teachers" element={<Teachers />} />
-            <Route path="groups" element={<Groups />} />
-            <Route path="attendance" element={<Attendance />} />
-        </Route>
+    return (
+        <Routes>
+            <Route path="/login" element={<Login />} />
 
-        <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
-);
+            {/* Teacher Dashboard */}
+            <Route
+                path="/teacher"
+                element={
+                    user?.role === "teacher" ? (
+                        <TeacherDashboard />
+                    ) : (
+                        <Navigate to="/login" replace />
+                    )
+                }
+            />
+
+            {/* Admin Dashboard */}
+            <Route
+                path="/admin"
+                element={
+                    user?.role === "admin" ? (
+                        <AdminDashboard />
+                    ) : (
+                        <Navigate to="/login" replace />
+                    )
+                }
+            />
+
+            {/* Super Admin Dashboard */}
+            <Route
+                path="/superadmin"
+                element={
+                    user?.role === "superadmin" ? (
+                        <SuperAdminDashboard />
+                    ) : (
+                        <Navigate to="/login" replace />
+                    )
+                }
+            />
+
+            {/* Default fallback */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+    );
+};
 
 export default AppRoutes;
