@@ -23,7 +23,7 @@ export default function Login() {
         script.src = "https://telegram.org/js/telegram-widget.js?22";
         script.async = true;
         script.setAttribute("data-telegram-login", "cambridge_davomat_bot");
-        script.setAttribute("data-size", "small");
+        script.setAttribute("data-size", "medium");
         script.setAttribute("data-request-access", "write");
         script.setAttribute("data-onauth", "window.onTelegramAuthCallback(user)");
 
