@@ -53,6 +53,7 @@ export default function Login() {
         e.preventDefault();
         try {
             const res = await login({ role: "admin", email, password });
+            console.log(res);
 
             // Rolga qarab yo'naltirish
             if (res.user.role === "superadmin") navigate("/superadmin");
@@ -61,6 +62,7 @@ export default function Login() {
         } catch (err) {
             alert(err.response?.data?.message || "Login failed");
         }
+
     };
 
 
