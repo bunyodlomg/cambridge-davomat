@@ -1,19 +1,26 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { FaUserTie, FaChalkboardTeacher } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useNotification } from "../../components/Notification";
 
-// Telegram Login Component
-function TelegramLogin() {
-    const { telegramLogin } = useContext(AuthContext);
+export default function Login() {
     const { show } = useNotification();
+    const navigate = useNavigate();
+    const { login } = useContext(AuthContext);
+    const [role, setRole] = useState(null);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
 
-    React.useEffect(() => {
+    // -------------------------------
+    // TELEGRAM LOGIN
+    // -------------------------------
+    useEffect(() => {
+        if (role !== "teacher") return;
+
         const container = document.getElementById("telegram-button-container");
         if (!container) return;
-
         container.innerHTML = "";
 
         const script = document.createElement("script");
@@ -37,11 +44,11 @@ function TelegramLogin() {
                     photo_url: user.photo_url || "",
                 });
                 console.log("Login success:", res);
+                show({ type: "success", message: "Teacher xush kelibsiz!" });
+                navigate("/teacher"); // teacher dashboard
             } catch (err) {
                 console.error("Login error:", err);
-                if (err.response && err.response.status === 403) {
-                    show({ type: "error", message: err.response.data.message });
-                }
+                show({ type: "error", message: err.response?.data?.message || "Telegram login failed" });
             }
         };
 
@@ -49,21 +56,11 @@ function TelegramLogin() {
             container.innerHTML = "";
             delete window.onTelegramAuth;
         };
-    }, [telegramLogin, show]);
+    }, [role, login, show, navigate]);
 
-    return <div id="telegram-button-container" className="w-full flex justify-center mt-4"></div>;
-}
-
-// Main Login Component
-export default function Login() {
-    const { show } = useNotification();
-    const navigate = useNavigate();
-    const { login } = useContext(AuthContext);
-    const [role, setRole] = useState(null);
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-
+    // -------------------------------
     // ADMIN LOGIN
+    // -------------------------------
     const handleAdminLogin = async (e) => {
         e.preventDefault();
         try {
@@ -79,7 +76,7 @@ export default function Login() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-[url('https://wallpaperaccess.com/full/366398.jpg')] bg-cover bg-center">
             <div className="backdrop-blur-xl bg-white/30 w-full max-w-md p-10 rounded-3xl
-                      shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 flex flex-col items-center">
+                            shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 flex flex-col items-center">
 
                 {/* LOGO */}
                 <motion.img
@@ -100,7 +97,7 @@ export default function Login() {
                         <button
                             onClick={() => setRole("teacher")}
                             className="flex flex-col items-center p-6 w-36 rounded-2xl bg-white/20 hover:bg-white/30
-                         backdrop-blur-md border border-white/30 text-white shadow-md cursor-pointer"
+                                       backdrop-blur-md border border-white/30 text-white shadow-md cursor-pointer"
                         >
                             <FaChalkboardTeacher className="text-4xl mb-2" /> Teacher
                         </button>
@@ -108,7 +105,7 @@ export default function Login() {
                         <button
                             onClick={() => setRole("admin")}
                             className="flex flex-col items-center p-6 w-36 rounded-2xl bg-white/20 hover:bg-white/30
-                         backdrop-blur-md border border-white/30 text-white shadow-md cursor-pointer"
+                                       backdrop-blur-md border border-white/30 text-white shadow-md cursor-pointer"
                         >
                             <FaUserTie className="text-4xl mb-2" /> Admin
                         </button>
@@ -143,10 +140,10 @@ export default function Login() {
                     </form>
                 )}
 
-                {/* TEACHER TELEGRAM LOGIN */}
-                {role === "teacher" && <TelegramLogin />}
+                {/* TEACHER TELEGRAM LOGIN BUTTON */}
+                {role === "teacher" && <div id="telegram-button-container" className="w-full flex justify-center mt-4"></div>}
 
-                {/* Back button */}
+                {/* BACK BUTTON */}
                 {role && (
                     <button
                         onClick={() => setRole(null)}

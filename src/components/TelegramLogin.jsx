@@ -43,7 +43,7 @@ export default function TelegramLogin() {
             container.innerHTML = "";
             delete window.onTelegramAuth;
         };
-    }, [telegramLogin]);
+    }, []);
 
     return <div id="telegram-button-container"></div>;
 }
