@@ -1,243 +1,135 @@
-import React, { useState, useEffect } from "react";
-import Table from "../components/Table";
-import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";
+import React, { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosConfig";
-import { AnimatePresence, motion } from "framer-motion";
+import { FaCheckCircle, FaToggleOn } from "react-icons/fa";
+import { CgDanger } from "react-icons/cg";
+import { useNotification } from "../components/Notification";
 
-const Teachers = () => {
+export default function Teachers() {
+    const { show } = useNotification();
     const [teachers, setTeachers] = useState([]);
-    const [groups, setGroups] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("unapproved"); // "unapproved" yoki "approved"
 
-    const [showModal, setShowModal] = useState(false);
-    const [editingGroup, setEditingGroup] = useState(null);
+    // ================= GET TEACHERS =================
+    const fetchTeachers = async () => {
+        try {
+            setLoading(true);
+            const res = await axiosInstance.get("/teachers"); // barcha teacherlar
+            setTeachers(res.data);
+        } catch {
+            show({ type: "error", message: "O‘qituvchilarni yuklab bo‘lmadi!" });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const [form, setForm] = useState({
-        name: "",
-        subject: "",
-        time: "",
-        teacherId: "",
-    });
-
-    // 📌 TEACHERS & GROUPS LIST OLISH
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [teacherRes, groupRes] = await Promise.all([
-                    axiosInstance.get("/teachers"),
-                    axiosInstance.get("/groups"),
-                ]);
-
-                setTeachers(teacherRes.data);
-                setGroups(groupRes.data);
-            } catch (err) {
-                console.log("Error fetching data:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        fetchTeachers();
     }, []);
 
-    // 📌 GROUP QO‘SHISH / UPDATE
-    const handleSaveGroup = async (e) => {
-        e.preventDefault();
+    // ================= APPROVE TEACHER =================
+    const approveTeacher = async (userId) => {
         try {
-            if (editingGroup) {
-                // UPDATE
-                const res = await axiosInstance.put(`/groups/${editingGroup._id}`, form);
-                setGroups(groups.map((g) => (g._id === res.data._id ? res.data : g)));
-            } else {
-                // CREATE
-                const res = await axiosInstance.post("/groups", form);
-                setGroups([...groups, res.data]);
-            }
-            setShowModal(false);
-            setEditingGroup(null);
-            setForm({ name: "", subject: "", time: "", teacherId: "" });
-        } catch (err) {
-            console.log("Error saving group:", err);
+            await axiosInstance.post("/teachers/approve", { userId });
+            show({ type: "success", message: "O‘qituvchi tasdiqlandi!" });
+            fetchTeachers(); // ro‘yxatni yangilash
+        } catch {
+            show({ type: "error", message: "Tasdiqlashda xatolik yuz berdi!" });
         }
     };
 
-    // 📌 GROUP EDIT
-    const handleEditGroup = (group) => {
-        setEditingGroup(group);
-        setForm({
-            name: group.name,
-            subject: group.subject,
-            time: group.time,
-            teacherId: group.teacher._id,
-        });
-        setShowModal(true);
-    };
-
-    // 📌 GROUP DELETE
-    const handleDeleteGroup = async (groupId) => {
-        if (!window.confirm("Guruhni o‘chirilsinmi?")) return;
-        try {
-            await axiosInstance.delete(`/groups/${groupId}`);
-            setGroups(groups.filter((g) => g._id !== groupId));
-        } catch (err) {
-            console.log("Error deleting group:", err);
-        }
-    };
-
-    const columns = ["Name", "Subject", "Time", "Teacher", "Actions"];
-    const tableData = groups.map((g) => ({
-        name: g.name,
-        subject: g.subject,
-        time: g.time,
-        teacher: g.teacher.fullName,
-        actions: g,
-    }));
+    // ================= AJRATISH =================
+    const approvedTeachers = teachers.filter(t => t.approved);
+    const unapprovedTeachers = teachers.filter(t => !t.approved);
 
     return (
-        <div className="mt-16 p-6 transition-all duration-300 dark:bg-gray-900 min-h-screen">
-            {/* HEADER */}
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-4xl font-semibold text-gray-800 dark:text-gray-200 tracking-tight">
-                    Groups
-                </h1>
+        <div className="p-6">
+            <h1 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-6">
+                O‘qituvchilar
+            </h1>
+
+            {/* TAB BUTTONS */}
+            <div className="flex gap-4 mb-6">
+                <button
+                    className={`px-4 py-2 rounded-xl font-medium transition ${activeTab === "unapproved"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                        }`}
+                    onClick={() => setActiveTab("unapproved")}
+                >
+                    Tasdiqlanishi kerak
+                </button>
 
                 <button
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 bg-green-600 text-white shadow-lg hover:bg-green-700 px-5 py-3 rounded-xl transition-all hover:scale-105"
+                    className={`px-4 py-2 rounded-xl font-medium transition ${activeTab === "approved"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                        }`}
+                    onClick={() => setActiveTab("approved")}
                 >
-                    <FaPlus /> Add Group
+                    Tasdiqlangan
                 </button>
             </div>
 
             {/* TABLE */}
-            <div className="rounded-2xl shadow-xl bg-white/70 dark:bg-white/10 backdrop-blur-2xl border border-gray-200 dark:border-gray-700 transition-all">
-                {loading ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-20">
-                        Loading groups...
-                    </p>
-                ) : groups.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-20">
-                        No groups found.
-                    </p>
-                ) : (
-                    <Table
-                        columns={columns}
-                        data={tableData}
-                        renderActions={(group) => (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleEditGroup(group)}
-                                    className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                                >
-                                    <FaEdit />
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteGroup(group._id)}
-                                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                >
-                                    <FaTrash />
-                                </button>
-                            </div>
-                        )}
-                    />
-                )}
+            <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 shadow-lg rounded-2xl p-5 overflow-x-auto">
+                <table className="w-full text-gray-800 dark:text-gray-200">
+                    <thead>
+                        <tr className="border-b border-gray-300 dark:border-gray-700 font-medium">
+                            <th className="p-3 text-left">Ism</th>
+                            <th className="p-3 text-left">Fan</th>
+                            <th className="p-3 text-left">Telefon</th>
+                            <th className="p-3 text-left">Telegram ID</th>
+                            <th className="p-3 text-left">Username</th>
+                            <th className="p-3 text-left">Avatar</th>
+                            <th className="p-3 text-left">Status</th>
+                            {activeTab === "unapproved" && <th className="p-3 text-left">Amallar</th>}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(activeTab === "unapproved" ? unapprovedTeachers : approvedTeachers).map((t) => (
+                            <tr
+                                key={t._id}
+                                className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition"
+                            >
+                                <td className="p-3">{t.fullName}</td>
+                                <td className="p-3">{t.subject || "—"}</td>
+                                <td className="p-3">{t.phone || "—"}</td>
+                                <td className="p-3">{t.telegramId || "—"}</td>
+                                <td className="p-3">{t.username || "—"}</td>
+                                <td className="p-3">
+                                    {t.avatar ? (
+                                        <img src={t.avatar} alt={t.fullName} className="w-12 h-12 rounded-full" />
+                                    ) : (
+                                        "—"
+                                    )}
+                                </td>
+                                <td className="p-3">
+                                    {t.approved ? (
+                                        <span className="text-green-500 font-medium">
+                                            <FaCheckCircle /> Tasdiqlangan
+                                        </span>
+                                    ) : (
+                                        <span className="text-red-500 font-medium">
+                                            <CgDanger /> Kutilmoqda
+                                        </span>
+                                    )}
+                                </td>
+                                {activeTab === "unapproved" && (
+                                    <td className="p-3 flex gap-4 text-xl">
+                                        <button
+                                            className="text-green-500 hover:text-green-700 transition"
+                                            onClick={() => approveTeacher(t._id)}
+                                        >
+                                            <FaToggleOn />
+                                        </button>
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-
-            {/* MODAL */}
-            <AnimatePresence>
-                {showModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.8, opacity: 0 }}
-                            className="backdrop-blur-2xl bg-none dark:bg-gray-800 
-                         border border-gray-100 dark:border-gray-500 
-                         shadow-2xl rounded-2xl p-6 w-[420px]"
-                        >
-                            <h2 className="text-2xl mb-4 font-semibold text-gray-800 dark:text-gray-100">
-                                {editingGroup ? "Edit Group" : "Add Group"}
-                            </h2>
-
-                            <form onSubmit={handleSaveGroup} className="flex flex-col gap-4">
-                                <input
-                                    type="text"
-                                    placeholder="Group Name"
-                                    value={form.name}
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl bg-none backdrop-blur-3xl dark:bg-gray-700 
-                             text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 
-                             shadow-sm focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 outline-none"
-                                    required
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Subject"
-                                    value={form.subject}
-                                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl bg-none backdrop-blur-3xl dark:bg-gray-700 
-                             text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 
-                             shadow-sm focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 outline-none"
-                                    required
-                                />
-                                <input
-                                    type="time"
-                                    placeholder="Time"
-                                    value={form.time}
-                                    onChange={(e) => setForm({ ...form, time: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl bg-none backdrop-blur-3xl dark:bg-gray-700 
-                             text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 
-                             shadow-sm focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 outline-none"
-                                    required
-                                />
-                                <select
-                                    value={form.teacherId}
-                                    onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-xl bg-none backdrop-blur-3xl dark:bg-gray-700 
-                             text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 
-                             shadow-sm focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 outline-none"
-                                    required
-                                >
-                                    <option value="">Select Teacher</option>
-                                    {teachers.map((t) => (
-                                        <option key={t._id} value={t._id}>
-                                            {t.fullName}
-                                        </option>
-                                    ))}
-                                </select>
-
-                                <div className="flex justify-end gap-3 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); setEditingGroup(null); }}
-                                        className="px-5 py-2 rounded-xl bg-gray-100 dark:bg-gray-500 
-                               text-gray-700 dark:text-gray-200 
-                               border border-gray-300 dark:border-gray-700 shadow-sm 
-                               hover:bg-gray-300 dark:hover:bg-[#444] transition"
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button
-                                        type="submit"
-                                        className="px-5 py-2 rounded-xl shadow-2xl shadow-green-500 
-                               bg-green-600 text-white hover:bg-green-700 transition"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
-};
-
-export default Teachers;
+}
