@@ -23,15 +23,6 @@ export default function Login() {
         if (!container) return;
         container.innerHTML = "";
 
-        const script = document.createElement("script");
-        script.src = "https://telegram.org/js/telegram-widget.js?22";
-        script.async = true;
-        script.setAttribute("data-telegram-login", "cambridge_davomat_bot");
-        script.setAttribute("data-size", "large");
-        script.setAttribute("data-request-access", "write");
-        script.setAttribute("data-onauth", "window.onTelegramAuthCallback(user)");
-        container.appendChild(script);
-
         window.onTelegramAuthCallback = async function (user) {
             try {
                 const res = await login({ role: "teacher", telegramUser: user });
@@ -42,12 +33,21 @@ export default function Login() {
             }
         };
 
+        const script = document.createElement("script");
+        script.src = "https://telegram.org/js/telegram-widget.js?22";
+        script.async = true;
+        script.setAttribute("data-telegram-login", "cambridge_davomat_bot");
+        script.setAttribute("data-size", "large");
+        script.setAttribute("data-request-access", "write");
+        script.setAttribute("data-onauth", "onTelegramAuthCallback(user)"); // STRING sifatida
+        container.appendChild(script);
 
         return () => {
             container.innerHTML = "";
             delete window.onTelegramAuthCallback;
         };
-    }, [role, login]);
+    }, [role]);
+
 
     /** ----------------------
      *  ADMIN LOGIN
