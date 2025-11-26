@@ -33,7 +33,7 @@ export function NotificationProvider({ children }) {
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.2 }}
                         className="
-                            fixed top-5 right-5 backdrop-blur-xl
+                            fixed top-5 right-5 backdrop-blur-xs
                             bg-white/70 shadow-2xl border border-white/40 
                             rounded-2xl px-5 py-4 flex items-center gap-3
                             z-[9999]

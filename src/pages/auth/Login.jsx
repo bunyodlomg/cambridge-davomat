@@ -3,8 +3,10 @@ import { AuthContext } from "../../context/AuthContext";
 import { FaUserTie, FaChalkboardTeacher } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNotification } from "../../components/Notification";
 
 export default function Login() {
+    const { show } = useNotification();
     const navigate = useNavigate();
     const { login } = useContext(AuthContext);
     const [role, setRole] = useState(null);
@@ -34,8 +36,9 @@ export default function Login() {
             try {
                 const res = await login({ role: "teacher", telegramUser: user });
                 navigate("/teacher");
+                show({ type: "success", message: "Teacher xush kelibsiz!" });
             } catch (err) {
-                alert(err.response?.data?.message || "Telegram login failed");
+                show({ type: "error", message: err.response?.data?.message || "Telegram login failed" });
             }
         };
 
@@ -60,7 +63,7 @@ export default function Login() {
             else if (res.user.role === "admin") navigate("/admin");
             else navigate("/"); // default
         } catch (err) {
-            alert(err.response?.data?.message || "Login failed");
+            show({ type: "error", message: err.response?.data?.message || "Login failed" });
         }
 
     };

@@ -59,10 +59,12 @@ const Group = () => {
         e.preventDefault();
         try {
             await axios.post("/api/groups/create", form);
-            alert("Group created!");
+            show({ type: "success", message: "Guruh yaratildi!" });
             setShowCreateModal(false);
         } catch (err) {
             console.error(err);
+            show({ type: "error", message: err });
+
         }
     };
 
@@ -73,10 +75,11 @@ const Group = () => {
                 groupId: selectedGroup._id,
                 studentId: form.studentId,
             });
-            alert("Student added!");
+            show({ type: "success", message: "O'quvchi qo'shildi"});
             setShowAddStudentModal(false);
         } catch (err) {
             console.error(err);
+            show({ type: "error", message: err});
         }
     };
 

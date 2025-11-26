@@ -34,7 +34,7 @@ export default function TelegramLogin() {
             } catch (err) {
                 console.error("Login error:", err);
                 if (err.response && err.response.status === 403) {
-                    alert(err.response.data.message);
+                    show({ type: "error", message: err.response.data.message });
                 }
             }
         };

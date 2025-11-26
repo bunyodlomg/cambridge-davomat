@@ -28,9 +28,7 @@ export const AuthProvider = ({ children }) => {
         checkUser();
     }, []);
 
-    const login = async ({ role, email, password, telegramUser }) => {
-        console.log(email, password);
-        
+    const login = async ({ role, email, password, telegramUser }) => {     
         let res;
         if (role === "admin" || role === "superadmin") {
             res = await axiosInstance.post("/auth/admin-login", { email, password });
