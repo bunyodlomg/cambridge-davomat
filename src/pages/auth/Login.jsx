@@ -9,6 +9,7 @@ export default function Login() {
     const { show } = useNotification();
     const navigate = useNavigate();
     const { login } = useContext(AuthContext);
+
     const [role, setRole] = useState(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -33,19 +34,24 @@ export default function Login() {
 
         container.appendChild(script);
 
+        // Global callback funksiyasi
         window.onTelegramAuth = async function (user) {
             console.log("Telegram user:", user);
             try {
-                const res = await telegramLogin({
+                const telegramUser = {
                     telegramId: user.id,
                     first_name: user.first_name,
                     last_name: user.last_name || "",
                     username: user.username || "",
                     avatar: user.photo_url || "",
-                });
+                };
+
+                // Tuzatilgan qism: login() chaqiriladi
+                const res = await login({ role: "teacher", telegramUser });
                 console.log("Login success:", res);
+
                 show({ type: "success", message: "Teacher xush kelibsiz!" });
-                navigate("/teacher"); // teacher dashboard
+                navigate("/teacher");
             } catch (err) {
                 console.error("Login error:", err);
                 show({ type: "error", message: err.response?.data?.message || "Telegram login failed" });
