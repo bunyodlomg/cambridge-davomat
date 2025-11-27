@@ -35,9 +35,9 @@ export default function Teachers() {
         fetchTeachers();
     }, []);
 
-    const toggleApprove = async (id) => {
+    const toggleApprove = async (id, approve) => {
         try {
-            const res = await axiosInstance.patch(`/teachers/approve/${id}`);
+            const res = await axiosInstance.patch(`/teachers/approve/${id}`, { approved: approve });
 
             setTeachers(prev =>
                 prev.map(t =>
@@ -47,12 +47,13 @@ export default function Teachers() {
 
             show({
                 type: "success",
-                message: `O‘qituvchi ${res.data.approved ? "tasdiqlandi" : "bekor qilindi"}`,
+                message: `O‘qituvchi ${res.data.approved ? "tasdiqlandi" : "rad etildi"}`,
             });
         } catch {
             show({ type: "error", message: "O‘zgartirib bo‘lmadi!" });
         }
     };
+
 
     const openEdit = (teacher) => {
         setEditData({
@@ -121,7 +122,7 @@ export default function Teachers() {
                             <th className="p-3">Fan</th>
                             <th className="p-3">Telefon</th>
                             <th className="p-3">Username</th>
-                            <th className="p-3 text-center">Status</th>
+                            <th className="p-3 text-center">Tasdiqlangan</th>
                             <th className="p-3 text-center">Amallar</th>
                         </tr>
                     </thead>
@@ -164,33 +165,48 @@ export default function Teachers() {
                                 <td className="p-3 text-center">
                                     {t.approved ? (
                                         <span className="flex items-center justify-center gap-2 text-green-600 font-semibold">
-                                            <FaCheckCircle /> Tasdiqlangan
+                                            <FaCheckCircle />
                                         </span>
                                     ) : (
                                         <span className="flex items-center justify-center gap-2 text-red-600 font-semibold">
-                                            <CgDanger /> Kutilmoqda
+                                            <CgDanger />
                                         </span>
                                     )}
                                 </td>
 
                                 {/* Actions */}
-                                <td className="p-3 text-center">
-                                    {activeTab === "unapproved" ? (
+                                {/* Actions */}
+                                <td className="p-3 text-center flex justify-center gap-3">
+                                    {activeTab === "unapproved" && (
+                                        <>
+                                            {/* Qabul qilish */}
+                                            <button
+                                                className="px-3 py-1 rounded-xl bg-green-600 text-white hover:bg-green-700 transition"
+                                                onClick={() => toggleApprove(t.telegramId, true)} // approved = true
+                                            >
+                                                Qabul qilish
+                                            </button>
+
+                                            {/* Rad etish */}
+                                            <button
+                                                className="px-3 py-1 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+                                                onClick={() => toggleApprove(t.telegramId, false)} // approved = false
+                                            >
+                                                Rad etish
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {activeTab === "approved" && (
                                         <button
-                                            className="text-green-600 hover:text-green-800 transition"
-                                            onClick={() => toggleApprove(t.telegramId)}
-                                        >
-                                            <LuToggleRight size={28} />
-                                        </button>
-                                    ) : (
-                                        <button
-                                            className="text-blue-600 hover:text-blue-800 transition"
+                                            className="px-3 py-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
                                             onClick={() => openEdit(t)}
                                         >
-                                            <LuPencil size={22} />
+                                            Tahrirlash
                                         </button>
                                     )}
                                 </td>
+
                             </tr>
                         ))}
                     </tbody>
@@ -209,7 +225,7 @@ export default function Teachers() {
                             initial={{ scale: 0.8 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0.8 }}
-                            className="backdrop-blur-2xl bg-white/80 dark:bg-gray-800/90 border border-gray-100 dark:border-gray-700 shadow-2xl rounded-2xl p-6 w-[420px]"
+                            className="backdrop-blur-2xl border bg-black/10 dark:bg-gray-900/10 border-gray-100 dark:border-gray-800 shadow-2xl rounded-2xl p-6 w-[420px]"
                         >
                             <h2 className="text-2xl mb-5 font-semibold text-gray-800 dark:text-gray-100">
                                 O‘qituvchini tahrirlash
@@ -218,9 +234,9 @@ export default function Teachers() {
                             <div className="flex flex-col gap-4">
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 rounded-xl bg-white/50 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
+                                    className="w-full px-4 py-2 rounded-xl bg-white/20 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
                            border border-gray-200 dark:border-gray-600 shadow-sm
-                           focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 outline-none"
+                           focus:ring-2 focus:ring-white dark:focus:ring-gray-600 outline-none"
                                     placeholder="Ism Familiya"
                                     value={editData.fullName}
                                     onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
@@ -228,9 +244,9 @@ export default function Teachers() {
 
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 rounded-xl bg-white/50 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
+                                    className="w-full px-4 py-2 rounded-xl bg-white/20 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
                            border border-gray-200 dark:border-gray-600 shadow-sm
-                           focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 outline-none"
+                           focus:ring-2 focus:ring-white dark:focus:ring-gray-600 outline-none"
                                     placeholder="Fan"
                                     value={editData.subject}
                                     onChange={(e) => setEditData({ ...editData, subject: e.target.value })}
@@ -238,9 +254,9 @@ export default function Teachers() {
 
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 rounded-xl bg-white/50 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
+                                    className="w-full px-4 py-2 rounded-xl bg-white/20 dark:bg-gray-700/70 text-gray-800 dark:text-gray-200 
                            border border-gray-200 dark:border-gray-600 shadow-sm
-                           focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 outline-none"
+                           focus:ring-2 focus:ring-white dark:focus:ring-gray-600 outline-none"
                                     placeholder="Telefon"
                                     value={editData.phone}
                                     onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
