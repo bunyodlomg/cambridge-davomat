@@ -2,6 +2,9 @@ import React, { useContext } from "react";
 import { FaChalkboardTeacher, FaClipboardList, FaHome, FaLayerGroup, FaStar, FaUserGraduate } from "react-icons/fa";
 import { NavLink } from "react-router-dom";
 import { ThemeContext } from "../context/ThemeContext";
+import { MdOutlineConfirmationNumber } from "react-icons/md";
+import { LuCheckCheck } from "react-icons/lu";
+import { BsCheckCircleFill } from "react-icons/bs";
 
 const Sidebar = ({ role }) => {
     const { theme } = useContext(ThemeContext);
@@ -10,7 +13,7 @@ const Sidebar = ({ role }) => {
         { name: "Dashboard", icon: <FaHome />, path: "/dashboard", roles: ["admin", "superadmin", "teacher"] },
         { name: "Adminlar", icon: <FaStar />, path: "/admins", roles: ["superadmin"] },
         { name: "Students", icon: <FaUserGraduate />, path: "/students", roles: ["admin", "superadmin", "teacher"] },
-        { name: "Teachers", icon: <FaChalkboardTeacher />, path: "/teachers", roles: ["admin", "superadmin"] },
+        { name: "Tasdiqlash", icon: <BsCheckCircleFill />, path: "/teachers-approve", roles: ["admin", "superadmin"] },
         { name: "Groups", icon: <FaLayerGroup />, path: "/groups", roles: ["admin", "superadmin"] },
         { name: "Attendance", icon: <FaClipboardList />, path: "/attendance", roles: ["admin", "superadmin", "teacher"] },
     ];

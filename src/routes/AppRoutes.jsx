@@ -4,10 +4,12 @@ import { AuthContext } from "../context/AuthContext";
 import Login from "../pages/auth/Login";
 import Dashboard from "../pages/Dashboard";
 import Students from "../pages/Students";
-import Teachers from "../pages/Teachers";
 import MainLayout from "../layout/MainLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Admins from "../pages/admin/Admins";
+import Groups from "../pages/Groups";
+import TeachersApproved from "../pages/TeachersApproved";
+import TeacherGroups from "../pages/TeacherGroups";
 const AppRoutes = () => {
     const { user } = useContext(AuthContext);
 
@@ -38,10 +40,18 @@ const AppRoutes = () => {
                     }
                 />
                 <Route
-                    path="teachers"
+                    path="teachers-approve"
                     element={
                         <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
-                            <Teachers />
+                            <TeachersApproved />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="teacher/:id"
+                    element={
+                        <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
+                            <TeacherGroups />
                         </ProtectedRoute>
                     }
                 />
@@ -57,7 +67,7 @@ const AppRoutes = () => {
                     path="groups"
                     element={
                         <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
-                            {/* Groups component */}
+                            <Groups />
                         </ProtectedRoute>
                     }
                 />

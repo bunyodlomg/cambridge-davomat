@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosConfig";
-import { FaCheckCircle } from "react-icons/fa";
-import { CgDanger } from "react-icons/cg";
-import { LuToggleLeft, LuToggleRight, LuPencil } from "react-icons/lu";
+import { FaCheckCircle, FaEdit } from "react-icons/fa";
 import { useNotification } from "../components/Notification";
 import { AnimatePresence, motion } from "framer-motion";
+import { MdDelete, MdEdit } from "react-icons/md";
 
-export default function Teachers() {
+export default function TeachersApproved() {
     const { show } = useNotification();
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("unapproved");
-
+    const [deleteModal, setDeleteModal] = useState(false);
+    const [selectedTeacher, setSelectedTeacher] = useState(null);
     const [editModal, setEditModal] = useState(false);
     const [editData, setEditData] = useState({
         fullName: "",
@@ -35,25 +35,22 @@ export default function Teachers() {
         fetchTeachers();
     }, []);
 
-    const toggleApprove = async (id, approve) => {
+
+    const handleApprove = async (id) => {
         try {
-            const res = await axiosInstance.patch(`/teachers/approve/${id}`, { approved: approve });
+            await axiosInstance.put(`/teachers/${id}`, { approved: true });
 
             setTeachers(prev =>
                 prev.map(t =>
-                    t._id === id ? { ...t, approved: res.data.approved } : t
+                    t._id === id ? { ...t, approved: true } : t
                 )
             );
 
-            show({
-                type: "success",
-                message: `O‘qituvchi ${res.data.approved ? "tasdiqlandi" : "rad etildi"}`,
-            });
-        } catch {
-            show({ type: "error", message: "O‘zgartirib bo‘lmadi!" });
+            show({ type: "success", message: "O‘qituvchi tasdiqlandi!" });
+        } catch (err) {
+            show({ type: "error", message: "Tasdiqlashda xatolik!" });
         }
     };
-
 
     const openEdit = (teacher) => {
         setEditData({
@@ -64,6 +61,27 @@ export default function Teachers() {
         });
         setEditModal(true);
     };
+
+    const deleteTeacher = async () => {
+        if (!selectedTeacher) return;
+
+        try {
+            await axiosInstance.delete(`/teachers/${selectedTeacher._id}`);
+
+            setTeachers(prev => prev.filter(t => t._id !== selectedTeacher._id));
+
+            show({ type: "success", message: "O‘qituvchi o‘chirildi!" });
+        } catch (err) {
+            show({ type: "error", message: "O‘chirishda xatolik!" });
+        } finally {
+            setDeleteModal(false);
+            setSelectedTeacher(null);
+        }
+    };
+
+
+
+
 
     const updateTeacher = async () => {
         try {
@@ -93,25 +111,32 @@ export default function Teachers() {
             {/* Tabs */}
             <div className="flex gap-4 mb-6">
                 <button
-                    className={`px-5 py-2 rounded-xl font-medium transition ${activeTab === "unapproved"
-                        ? "bg-red-700 text-white"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    className={`relative px-5 py-2 rounded-xl font-medium transition ${activeTab === "unapproved"
+                            ? "bg-red-700 text-white dark:bg-red-600"
+                            : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
                         }`}
                     onClick={() => setActiveTab("unapproved")}
                 >
                     Tasdiqlanishi kerak
+                    <div className="absolute -top-2 -right-2 px-2 py-0 rounded-xl bg-orange-400">
+                        {unapprovedTeachers.length}
+                    </div>
                 </button>
 
                 <button
-                    className={`px-5 py-2 rounded-xl font-medium transition ${activeTab === "approved"
-                        ? "bg-green-700 text-white"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    className={`relative px-5 py-2 rounded-xl font-medium transition ${activeTab === "approved"
+                            ? "bg-green-700 text-white dark:bg-green-600"
+                            : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
                         }`}
                     onClick={() => setActiveTab("approved")}
                 >
                     Tasdiqlangan
+                    <div className="absolute -top-2 -right-2 px-2 py-0 rounded-xl bg-orange-400">
+                        {approvedTeachers.length}
+                    </div>
                 </button>
             </div>
+
 
             {/* Table */}
             <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 shadow-xl rounded-2xl p-5 overflow-x-auto">
@@ -122,7 +147,6 @@ export default function Teachers() {
                             <th className="p-3">Fan</th>
                             <th className="p-3">Telefon</th>
                             <th className="p-3">Username</th>
-                            <th className="p-3 text-center">Tasdiqlangan</th>
                             <th className="p-3 text-center">Amallar</th>
                         </tr>
                     </thead>
@@ -161,52 +185,38 @@ export default function Teachers() {
                                     ) : "—"}
                                 </td>
 
-                                {/* Status Badge */}
-                                <td className="p-3 text-center">
-                                    {t.approved ? (
-                                        <span className="flex items-center justify-center gap-2 text-green-600 font-semibold">
-                                            <FaCheckCircle />
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center justify-center gap-2 text-red-600 font-semibold">
-                                            <CgDanger />
-                                        </span>
-                                    )}
-                                </td>
-
                                 {/* Actions */}
-                                {/* Actions */}
-                                <td className="p-3 text-center flex justify-center gap-3">
+                                <td className="text-center gap-3">
                                     {activeTab === "unapproved" && (
                                         <>
                                             {/* Qabul qilish */}
                                             <button
-                                                className="px-3 py-1 rounded-xl bg-green-600 text-white hover:bg-green-700 transition"
-                                                onClick={() => toggleApprove(t.telegramId, true)} // approved = true
+                                                className="px-3 py-1 rounded-full bg-green-600 text-white hover:bg-green-700 transition mr-2"
+                                                onClick={() => handleApprove(t._id)}
                                             >
-                                                Qabul qilish
-                                            </button>
-
-                                            {/* Rad etish */}
-                                            <button
-                                                className="px-3 py-1 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
-                                                onClick={() => toggleApprove(t.telegramId, false)} // approved = false
-                                            >
-                                                Rad etish
+                                                <FaCheckCircle />
                                             </button>
                                         </>
                                     )}
 
                                     {activeTab === "approved" && (
                                         <button
-                                            className="px-3 py-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+                                            className="px-3 py-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition mr-3"
                                             onClick={() => openEdit(t)}
                                         >
-                                            Tahrirlash
+                                            <MdEdit />
                                         </button>
                                     )}
+                                    <button
+                                        className="px-3 py-1 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+                                        onClick={() => {
+                                            setSelectedTeacher(t);
+                                            setDeleteModal(true);
+                                        }}
+                                    >
+                                        <MdDelete />
+                                    </button>
                                 </td>
-
                             </tr>
                         ))}
                     </tbody>
@@ -282,7 +292,51 @@ export default function Teachers() {
                         </motion.div>
                     </motion.div>
                 )}
+
+
+                {deleteModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.8 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.8 }}
+                            className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 shadow-xl rounded-2xl p-6 w-[400px]"
+                        >
+                            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                                O‘chirishni tasdiqlaysizmi?
+                            </h2>
+
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                <span className="font-semibold">{selectedTeacher?.fullName}</span>
+                                ni o‘chirmoqchimisiz?
+                            </p>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setDeleteModal(false)}
+                                    className="px-5 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                                >
+                                    Bekor qilish
+                                </button>
+
+                                <button
+                                    onClick={deleteTeacher}
+                                    className="px-5 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+                                >
+                                    Ha, o‘chirilsin
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
             </AnimatePresence>
+
+
 
         </div>
     );
