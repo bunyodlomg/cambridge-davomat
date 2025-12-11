@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import axiosInstance from "../api/axiosConfig";
 import { useNotification } from "../components/Notification";
 import Loader from "../components/Loader";
-import { AuthContext } from "../context/AuthContext"; // AuthContext ni import qilish
 import {
     MdGroup,
     MdCheckCircle,
@@ -19,12 +18,9 @@ import {
     MdWarning,
     MdAdd
 } from "react-icons/md";
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom"; // Link import qilish
 
 export default function AttendancePage() {
-    const { user } = useContext(AuthContext); // Foydalanuvchi ma'lumotlarini olish
-    console.log(user);
-    
     const [teachers, setTeachers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -46,41 +42,15 @@ export default function AttendancePage() {
 
     const { show } = useNotification();
 
-    // Teacher rolini tekshirish
-    const isTeacher = user?.role === "teacher";
-    const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+    useEffect(() => {
+        fetchTeachers();
+    }, []);
 
     useEffect(() => {
-        if (isTeacher) {
-            // Agar teacher bo'lsa, o'zining guruhlarini olish
-            fetchTeacherOwnGroups();
-        } else if (isAdmin) {
-            // Agar admin bo'lsa, barcha o'qituvchilarni olish
-            fetchTeachers();
+        if (selectedTeacher) {
+            fetchTeacherGroups(selectedTeacher._id);
         }
-    }, [isTeacher, isAdmin]);
-
-    // Teacher o'zining guruhlarini olish
-    const fetchTeacherOwnGroups = async () => {
-        try {
-            setLoading(true);
-            // Teacher ma'lumotlarini olish
-            const teacherRes = await axiosInstance.get(`/teachers/me`);
-            const teacher = teacherRes.data;
-            setSelectedTeacher(teacher);
-
-            // Teacherning guruhlarini olish
-            const groupsRes = await axiosInstance.get(`/groups/teacher/${teacher._id}`);
-            setGroups(groupsRes.data);
-
-            console.log("Teacher own groups loaded:", teacher.fullName, groupsRes.data.length);
-        } catch (error) {
-            console.error("Teacher groups error:", error);
-            show({ type: "error", message: "Guruhlarni yuklashda xatolik!" });
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [selectedTeacher]);
 
     const fetchTeachers = async () => {
         try {
@@ -94,12 +64,6 @@ export default function AttendancePage() {
         }
     };
 
-    useEffect(() => {
-        if (selectedTeacher && isAdmin) {
-            fetchTeacherGroups(selectedTeacher._id);
-        }
-    }, [selectedTeacher, isAdmin]);
-
     const fetchTeacherGroups = async (teacherId) => {
         try {
             setLoadingGroups(true);
@@ -112,13 +76,12 @@ export default function AttendancePage() {
         }
     };
 
-    // handleGroupSelect funksiyasi o'zgarmaydi
     const handleGroupSelect = async (group) => {
         try {
             setLoading(true);
             setSelectedGroup(group);
             setShowGroupModal(false);
-            setErrorMessage("");
+            setErrorMessage(""); // Error messageni tozalash
 
             console.log("Selecting group:", {
                 groupId: group._id,
@@ -127,6 +90,7 @@ export default function AttendancePage() {
                 studentsCount: group.students?.length || 0
             });
 
+            // Agar guruhda o'quvchi bo'lmasa, oldindan tekshirish
             if (!group.students || group.students.length === 0) {
                 setErrorMessage("Ushbu guruhda hech qanday o'quvchi yo'q. Iltimos, avval guruhga o'quvchi qo'shing.");
                 setAttendance(null);
@@ -135,6 +99,7 @@ export default function AttendancePage() {
                 return;
             }
 
+            // Davomatni olish yoki yaratish
             const res = await axiosInstance.post("/attendance", {
                 groupId: group._id,
                 date: date,
@@ -145,10 +110,17 @@ export default function AttendancePage() {
             if (res.data.attendance) {
                 let updatedStudents = [...res.data.attendance.students || []];
 
+                // 🔴 YANGI QO'SHILGAN O'QUVCHILARNI TEKSHIRISH
+                // 1. Guruhdagi hamma o'quvchilarni olish
                 const allGroupStudentIds = new Set(group.students.map(s => s._id));
+
+                // 2. Davomatda bo'lgan o'quvchilarni olish
                 const attendanceStudentIds = new Set(updatedStudents.map(s => s.student._id));
+
+                // 3. Davomatda yo'q bo'lgan o'quvchilarni topish
                 const missingStudentIds = [...allGroupStudentIds].filter(id => !attendanceStudentIds.has(id));
 
+                // 4. Agar yo'q o'quvchilar bo'lsa, ularni qo'shish
                 if (missingStudentIds.length > 0) {
                     const missingStudents = group.students.filter(s =>
                         missingStudentIds.includes(s._id)
@@ -162,7 +134,7 @@ export default function AttendancePage() {
                             notes: "",
                             isExcused: false,
                             excuseReason: "",
-                            _id: `temp-${Date.now()}-${Math.random()}`
+                            _id: `temp-${Date.now()}-${Math.random()}` // Vaqtinchalik ID
                         });
                     });
 
@@ -171,8 +143,9 @@ export default function AttendancePage() {
 
                 setAttendance(res.data.attendance);
                 setStudents(updatedStudents);
-                setErrorMessage("");
+                setErrorMessage(""); // Error messageni tozalash
             } else {
+                // Agar davomat bo'lmasa, o'quvchilarni guruhdan olish
                 setAttendance(null);
                 setStudents(group.students?.map(student => ({
                     student,
@@ -187,11 +160,13 @@ export default function AttendancePage() {
             console.error("Group select error:", error);
             console.error("Error response data:", error.response?.data);
 
+            // Xatoni tahlil qilish
             let errorMsg = "Davomat olishda xatolik!";
 
             if (error.response?.data?.message) {
                 errorMsg = error.response.data.message;
 
+                // Agar guruhda o'quvchi bo'lmasa
                 if (errorMsg.includes("Guruhda hech qanday o'quvchi yo'q")) {
                     setErrorMessage(errorMsg);
                     setAttendance(null);
@@ -202,14 +177,14 @@ export default function AttendancePage() {
             show({
                 type: "error",
                 message: errorMsg,
-                duration: 5000
+                duration: 5000 // 5 soniya ko'rsatish
             });
+
         } finally {
             setLoading(false);
         }
     };
 
-    // Qolgan funksiyalar o'zgarmaydi
     const handleStatusChange = (studentId, status) => {
         setStudents(prev => prev.map(student => {
             if (student.student._id === studentId) {
@@ -249,7 +224,7 @@ export default function AttendancePage() {
             show({ type: "success", message: "Davomat saqlandi!" });
             setAttendance(res.data.attendance);
             setStudents(res.data.attendance.students || []);
-            setErrorMessage("");
+            setErrorMessage(""); // Error messageni tozalash
         } catch (error) {
             console.error("Save attendance error:", error);
             show({
@@ -270,6 +245,7 @@ export default function AttendancePage() {
         })));
     };
 
+    // Filtered teachers
     const filteredTeachers = teachers.filter(teacher =>
         teacher.fullName?.toLowerCase().includes(searchTeacher.toLowerCase()) ||
         teacher.phone?.includes(searchTeacher) ||
@@ -278,16 +254,19 @@ export default function AttendancePage() {
         )
     );
 
+    // Filtered groups
     const filteredGroups = groups.filter(group =>
         group.name?.toLowerCase().includes(searchGroup.toLowerCase()) ||
         group.subject?.toLowerCase().includes(searchGroup.toLowerCase()) ||
         group.roomNumber?.toString().includes(searchGroup)
     );
 
+    // Guruhda o'quvchilarni hisoblash
     const countStudentsInGroup = (group) => {
         return group.students?.length || 0;
     };
 
+    // Guruhni o'quvchilar soni bilan ko'rsatish
     const getGroupDisplayName = (group) => {
         const studentCount = countStudentsInGroup(group);
         return `${group.name} (${studentCount} ta o'quvchi)`;
@@ -311,9 +290,7 @@ export default function AttendancePage() {
                             Davomat Olish
                         </h1>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {isTeacher
-                                ? "Sizning guruhlaringiz"
-                                : "O'qituvchi va guruhni tanlang, davomat oling"}
+                            O'qituvchi va guruhni tanlang, davomat oling
                         </p>
                     </div>
 
@@ -332,122 +309,63 @@ export default function AttendancePage() {
                     </div>
                 </div>
 
-                {/* Selection Cards - Faqat admin uchun */}
-                {isAdmin ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        {/* Teacher Selection Card (Admin uchun) */}
-                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedTeacher
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
-                            }`} onClick={() => setShowTeacherModal(true)}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
-                                        <MdPerson className="text-2xl text-blue-600 dark:text-blue-400" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                                            {selectedTeacher ? selectedTeacher.fullName : "O'qituvchi tanlang"}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {selectedTeacher
-                                                ? `${selectedTeacher.subjects?.join(", ")} • ${selectedTeacher.phone}`
-                                                : "Davomat oladigan o'qituvchini tanlang"
-                                            }
-                                        </p>
-                                    </div>
+                {/* Selection Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {/* Teacher Selection Card */}
+                    <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedTeacher
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+                        }`} onClick={() => setShowTeacherModal(true)}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
+                                    <MdPerson className="text-2xl text-blue-600 dark:text-blue-400" />
                                 </div>
-                                <MdArrowDropDown className="text-2xl text-gray-500" />
-                            </div>
-                        </div>
-
-                        {/* Group Selection Card */}
-                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
-                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
-                            } ${!selectedTeacher ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            onClick={() => selectedTeacher && setShowGroupModal(true)}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
-                                        <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                                            {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {selectedGroup
-                                                ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
-                                                : selectedTeacher
-                                                    ? "Davomat oladigan guruhni tanlang"
-                                                    : "Avval o'qituvchi tanlang"
-                                            }
-                                        </p>
-                                    </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                                        {selectedTeacher ? selectedTeacher.fullName : "O'qituvchi tanlang"}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        {selectedTeacher
+                                            ? `${selectedTeacher.subjects?.join(", ")} • ${selectedTeacher.phone}`
+                                            : "Davomat oladigan o'qituvchini tanlang"
+                                        }
+                                    </p>
                                 </div>
-                                <MdArrowDropDown className="text-2xl text-gray-500" />
                             </div>
+                            <MdArrowDropDown className="text-2xl text-gray-500" />
                         </div>
                     </div>
-                ) : (
-                    // Teacher uchun faqat guruh tanlash kartasi
-                    <div className="mb-6">
-                        {/* Teacher ma'lumotlari */}
-                        {selectedTeacher && (
-                            <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800/30">
-                                <div className="flex items-center gap-3">
-                                    {selectedTeacher.avatar ? (
-                                        <img
-                                            src={selectedTeacher.avatar}
-                                            alt={selectedTeacher.fullName}
-                                            className="w-12 h-12 rounded-full border-2 border-white"
-                                        />
-                                    ) : (
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
-                                            <MdPerson className="text-2xl text-white" />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                                            {selectedTeacher.fullName}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {selectedTeacher.subjects?.join(", ")} • {selectedTeacher.phone}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Group Selection Card (Teacher uchun) */}
-                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
-                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
-                            }`}
-                            onClick={() => setShowGroupModal(true)}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
-                                        <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                                            {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {selectedGroup
-                                                ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
-                                                : "Davomat oladigan guruhni tanlang"
-                                            }
-                                        </p>
-                                    </div>
+                    {/* Group Selection Card */}
+                    <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
+                        } ${!selectedTeacher ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => selectedTeacher && setShowGroupModal(true)}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
+                                    <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
                                 </div>
-                                <MdArrowDropDown className="text-2xl text-gray-500" />
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                                        {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        {selectedGroup
+                                            ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
+                                            : selectedTeacher
+                                                ? "Davomat oladigan guruhni tanlang"
+                                                : "Avval o'qituvchi tanlang"
+                                        }
+                                    </p>
+                                </div>
                             </div>
+                            <MdArrowDropDown className="text-2xl text-gray-500" />
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* Xato xabari */}
                 {errorMessage && (
@@ -464,22 +382,18 @@ export default function AttendancePage() {
                                     {errorMessage}
                                 </p>
                                 <div className="flex flex-wrap gap-3">
-                                    {isAdmin && (
-                                        <>
-                                            <Link
-                                                to="/students"
-                                                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all text-sm"
-                                            >
-                                                O'quvchilar sahifasiga o'tish
-                                            </Link>
-                                            <Link
-                                                to="/groups"
-                                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-700 hover:to-green-800 transition-all text-sm"
-                                            >
-                                                Guruhlar sahifasiga o'tish
-                                            </Link>
-                                        </>
-                                    )}
+                                    <Link
+                                        to="/students"
+                                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all text-sm"
+                                    >
+                                        O'quvchilar sahifasiga o'tish
+                                    </Link>
+                                    <Link
+                                        to="/groups"
+                                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-700 hover:to-green-800 transition-all text-sm"
+                                    >
+                                        Guruhlar sahifasiga o'tish
+                                    </Link>
                                     <button
                                         onClick={() => setShowGroupModal(true)}
                                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-all text-sm"
@@ -553,26 +467,22 @@ export default function AttendancePage() {
                         <div className="max-w-md mx-auto">
                             <MdGroup className="text-6xl text-gray-400 dark:text-gray-600 mx-auto mb-6" />
                             <h3 className="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                                {isTeacher ? "Sizning guruhlaringiz" : "Davomat olishni boshlang"}
+                                Davomat olishni boshlang
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                {isTeacher
-                                    ? "Yuqoridagi kartochkadan davomat oladigan guruhni tanlang"
-                                    : "Davomat olish uchun yuqoridagi kartochkalardan avval o'qituvchi, keyin guruhni tanlang"}
+                                Davomat olish uchun yuqoridagi kartochkalardan avval o'qituvchi, keyin guruhni tanlang.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => setShowTeacherModal(true)}
-                                        className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
-                                    >
-                                        O'qituvchi tanlash
-                                    </button>
-                                )}
                                 <button
-                                    onClick={() => setShowGroupModal(true)}
-                                    disabled={isAdmin && !selectedTeacher}
-                                    className={`px-5 py-3 rounded-xl font-medium transition-all ${(isTeacher || (isAdmin && selectedTeacher))
+                                    onClick={() => setShowTeacherModal(true)}
+                                    className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+                                >
+                                    O'qituvchi tanlash
+                                </button>
+                                <button
+                                    onClick={() => selectedTeacher && setShowGroupModal(true)}
+                                    disabled={!selectedTeacher}
+                                    className={`px-5 py-3 rounded-xl font-medium transition-all ${selectedTeacher
                                         ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800'
                                         : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                                         }`}
@@ -583,6 +493,7 @@ export default function AttendancePage() {
                         </div>
                     </div>
                 ) : errorMessage ? (
+                    // Guruhda o'quvchi yo'q bo'lsa
                     <div className="p-8 text-center">
                         <div className="max-w-md mx-auto">
                             <MdWarning className="text-6xl text-amber-500 dark:text-amber-400 mx-auto mb-6" />
@@ -657,15 +568,13 @@ export default function AttendancePage() {
                                     <p className="text-gray-500 dark:text-gray-400 mb-6">
                                         Ushbu guruhda hech qanday o'quvchi yo'q
                                     </p>
-                                    {isAdmin && (
-                                        <Link
-                                            to={`/groups/${selectedGroup._id}/edit`}
-                                            className="px-5 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-medium hover:from-green-700 hover:to-green-800 transition-all inline-flex items-center gap-2"
-                                        >
-                                            <MdAdd />
-                                            Guruhga o'quvchi qo'shish
-                                        </Link>
-                                    )}
+                                    <Link
+                                        to={`/groups/${selectedGroup._id}/edit`}
+                                        className="px-5 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-medium hover:from-green-700 hover:to-green-800 transition-all inline-flex items-center gap-2"
+                                    >
+                                        <MdAdd />
+                                        Guruhga o'quvchi qo'shish
+                                    </Link>
                                 </div>
                             ) : (
                                 <>
@@ -692,6 +601,7 @@ export default function AttendancePage() {
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3">
+                                                            {console.log(student.student.image)}
                                                             {student.student.image ? (
                                                                 <img
                                                                     src={`${studentImgApi + student.student.image}`}
@@ -793,8 +703,8 @@ export default function AttendancePage() {
                 )}
             </div>
 
-            {/* Teacher Selection Modal (Faqat admin uchun) */}
-            {showTeacherModal && isAdmin && (
+            {/* Teacher Selection Modal */}
+            {showTeacherModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -849,7 +759,7 @@ export default function AttendancePage() {
                                                 setSelectedGroup(null);
                                                 setAttendance(null);
                                                 setStudents([]);
-                                                setErrorMessage("");
+                                                setErrorMessage(""); // Error messageni tozalash
                                                 setShowTeacherModal(false);
                                             }}
                                         >
@@ -887,6 +797,10 @@ export default function AttendancePage() {
                                                             {teacher.phone}
                                                         </span>
                                                     </p>
+
+                                                    <div className="flex items-center gap-2 mt-2">
+
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -898,8 +812,8 @@ export default function AttendancePage() {
                 </div>
             )}
 
-            {/* Group Selection Modal (Hamma uchun) */}
-            {showGroupModal && (
+            {/* Group Selection Modal */}
+            {showGroupModal && selectedTeacher && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -909,9 +823,7 @@ export default function AttendancePage() {
                                         Guruh tanlang
                                     </h2>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        {isTeacher
-                                            ? `Sizning guruhlaringiz: ${selectedTeacher?.fullName}`
-                                            : `O'qituvchi: ${selectedTeacher?.fullName}`}
+                                        O'qituvchi: {selectedTeacher.fullName}
                                     </p>
                                 </div>
                                 <button
