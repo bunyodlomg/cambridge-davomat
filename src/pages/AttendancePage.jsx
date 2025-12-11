@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axiosInstance from "../api/axiosConfig";
 import { useNotification } from "../components/Notification";
+import { AuthContext } from "../context/AuthContext";
 import Loader from "../components/Loader";
 import {
     MdGroup,
@@ -18,9 +19,10 @@ import {
     MdWarning,
     MdAdd
 } from "react-icons/md";
-import { Link } from "react-router-dom"; // Link import qilish
+import { Link } from "react-router-dom";
 
 export default function AttendancePage() {
+    const { user } = useContext(AuthContext);
     const [teachers, setTeachers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -39,12 +41,21 @@ export default function AttendancePage() {
 
     const Api = import.meta.env.VITE_API_URL.slice(0) || "http://localhost:5000";
     const studentImgApi = Api.slice(0, -4);
-
     const { show } = useNotification();
 
+    // User rolini aniqlash
+    const isTeacher = user?.role === "teacher";
+    const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+
     useEffect(() => {
-        fetchTeachers();
-    }, []);
+        // Agar teacher bo'lsa, o'z ma'lumotlarini olish
+        if (isTeacher && user?.teacherId) {
+            fetchTeacherData(user.teacherId);
+        } else if (isAdmin) {
+            // Agar admin bo'lsa, barcha o'qituvchilarni olish
+            fetchTeachers();
+        }
+    }, [user]);
 
     useEffect(() => {
         if (selectedTeacher) {
@@ -52,6 +63,27 @@ export default function AttendancePage() {
         }
     }, [selectedTeacher]);
 
+    // Teacher o'z ma'lumotlarini olish
+    const fetchTeacherData = async (teacherId) => {
+        try {
+            setLoading(true);
+            const res = await axiosInstance.get(`/teachers/${teacherId}`);
+            const teacherData = res.data;
+
+            // Teacher o'zini tanlash
+            setSelectedTeacher(teacherData);
+
+            // Teacherning guruhlarini olish
+            await fetchTeacherGroups(teacherId);
+        } catch (error) {
+            console.error("Teacher data fetch error:", error);
+            show({ type: "error", message: "Ma'lumotlarni yuklashda xatolik!" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Admin uchun barcha teacherlarni olish
     const fetchTeachers = async () => {
         try {
             setLoading(true);
@@ -70,6 +102,7 @@ export default function AttendancePage() {
             const res = await axiosInstance.get(`/groups?teacher=${teacherId}`);
             setGroups(res.data);
         } catch (error) {
+            console.error("Groups fetch error:", error);
             show({ type: "error", message: "Guruhlarni yuklashda xatolik!" });
         } finally {
             setLoadingGroups(false);
@@ -81,7 +114,7 @@ export default function AttendancePage() {
             setLoading(true);
             setSelectedGroup(group);
             setShowGroupModal(false);
-            setErrorMessage(""); // Error messageni tozalash
+            setErrorMessage("");
 
             console.log("Selecting group:", {
                 groupId: group._id,
@@ -90,7 +123,7 @@ export default function AttendancePage() {
                 studentsCount: group.students?.length || 0
             });
 
-            // Agar guruhda o'quvchi bo'lmasa, oldindan tekshirish
+            // Agar guruhda o'quvchi bo'lmasa
             if (!group.students || group.students.length === 0) {
                 setErrorMessage("Ushbu guruhda hech qanday o'quvchi yo'q. Iltimos, avval guruhga o'quvchi qo'shing.");
                 setAttendance(null);
@@ -110,17 +143,11 @@ export default function AttendancePage() {
             if (res.data.attendance) {
                 let updatedStudents = [...res.data.attendance.students || []];
 
-                // 🔴 YANGI QO'SHILGAN O'QUVCHILARNI TEKSHIRISH
-                // 1. Guruhdagi hamma o'quvchilarni olish
+                // Yangi qo'shilgan o'quvchilarni tekshirish
                 const allGroupStudentIds = new Set(group.students.map(s => s._id));
-
-                // 2. Davomatda bo'lgan o'quvchilarni olish
                 const attendanceStudentIds = new Set(updatedStudents.map(s => s.student._id));
-
-                // 3. Davomatda yo'q bo'lgan o'quvchilarni topish
                 const missingStudentIds = [...allGroupStudentIds].filter(id => !attendanceStudentIds.has(id));
 
-                // 4. Agar yo'q o'quvchilar bo'lsa, ularni qo'shish
                 if (missingStudentIds.length > 0) {
                     const missingStudents = group.students.filter(s =>
                         missingStudentIds.includes(s._id)
@@ -134,7 +161,7 @@ export default function AttendancePage() {
                             notes: "",
                             isExcused: false,
                             excuseReason: "",
-                            _id: `temp-${Date.now()}-${Math.random()}` // Vaqtinchalik ID
+                            _id: `temp-${Date.now()}-${Math.random()}`
                         });
                     });
 
@@ -143,9 +170,9 @@ export default function AttendancePage() {
 
                 setAttendance(res.data.attendance);
                 setStudents(updatedStudents);
-                setErrorMessage(""); // Error messageni tozalash
+                setErrorMessage("");
             } else {
-                // Agar davomat bo'lmasa, o'quvchilarni guruhdan olish
+                // Agar davomat bo'lmasa
                 setAttendance(null);
                 setStudents(group.students?.map(student => ({
                     student,
@@ -160,13 +187,11 @@ export default function AttendancePage() {
             console.error("Group select error:", error);
             console.error("Error response data:", error.response?.data);
 
-            // Xatoni tahlil qilish
             let errorMsg = "Davomat olishda xatolik!";
 
             if (error.response?.data?.message) {
                 errorMsg = error.response.data.message;
 
-                // Agar guruhda o'quvchi bo'lmasa
                 if (errorMsg.includes("Guruhda hech qanday o'quvchi yo'q")) {
                     setErrorMessage(errorMsg);
                     setAttendance(null);
@@ -177,7 +202,7 @@ export default function AttendancePage() {
             show({
                 type: "error",
                 message: errorMsg,
-                duration: 5000 // 5 soniya ko'rsatish
+                duration: 5000
             });
 
         } finally {
@@ -205,6 +230,9 @@ export default function AttendancePage() {
         try {
             setSaving(true);
 
+            // Teacher ID ni aniqlash
+            const teacherId = isTeacher ? user.teacherId : selectedTeacher._id;
+
             const formattedStudents = students.map(s => ({
                 studentId: s.student._id,
                 status: s.status,
@@ -216,7 +244,7 @@ export default function AttendancePage() {
 
             const res = await axiosInstance.post("/attendance/quick", {
                 groupId: selectedGroup._id,
-                teacherId: selectedTeacher._id,
+                teacherId: teacherId, // To'g'ri teacher ID
                 students: formattedStudents,
                 date: date,
             });
@@ -224,7 +252,7 @@ export default function AttendancePage() {
             show({ type: "success", message: "Davomat saqlandi!" });
             setAttendance(res.data.attendance);
             setStudents(res.data.attendance.students || []);
-            setErrorMessage(""); // Error messageni tozalash
+            setErrorMessage("");
         } catch (error) {
             console.error("Save attendance error:", error);
             show({
@@ -245,14 +273,14 @@ export default function AttendancePage() {
         })));
     };
 
-    // Filtered teachers
-    const filteredTeachers = teachers.filter(teacher =>
+    // Filtered teachers (faqat admin uchun)
+    const filteredTeachers = isAdmin ? teachers.filter(teacher =>
         teacher.fullName?.toLowerCase().includes(searchTeacher.toLowerCase()) ||
         teacher.phone?.includes(searchTeacher) ||
         teacher.subjects?.some(subject =>
             subject.toLowerCase().includes(searchTeacher.toLowerCase())
         )
-    );
+    ) : [];
 
     // Filtered groups
     const filteredGroups = groups.filter(group =>
@@ -261,12 +289,10 @@ export default function AttendancePage() {
         group.roomNumber?.toString().includes(searchGroup)
     );
 
-    // Guruhda o'quvchilarni hisoblash
     const countStudentsInGroup = (group) => {
         return group.students?.length || 0;
     };
 
-    // Guruhni o'quvchilar soni bilan ko'rsatish
     const getGroupDisplayName = (group) => {
         const studentCount = countStudentsInGroup(group);
         return `${group.name} (${studentCount} ta o'quvchi)`;
@@ -290,7 +316,7 @@ export default function AttendancePage() {
                             Davomat Olish
                         </h1>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            O'qituvchi va guruhni tanlang, davomat oling
+                            {isTeacher ? "Guruhni tanlang, davomat oling" : "O'qituvchi va guruhni tanlang, davomat oling"}
                         </p>
                     </div>
 
@@ -309,65 +335,121 @@ export default function AttendancePage() {
                     </div>
                 </div>
 
-                {/* Selection Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {/* Teacher Selection Card */}
-                    <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedTeacher
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
-                        }`} onClick={() => setShowTeacherModal(true)}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
-                                    <MdPerson className="text-2xl text-blue-600 dark:text-blue-400" />
+                {/* Selection Cards - FAQRAT ADMIN/UCHUN TEACHER TANLASH */}
+                {isAdmin ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Teacher Selection Card (faqat admin uchun) */}
+                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedTeacher
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+                            }`} onClick={() => setShowTeacherModal(true)}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
+                                        <MdPerson className="text-2xl text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                                            {selectedTeacher ? selectedTeacher.fullName : "O'qituvchi tanlang"}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {selectedTeacher
+                                                ? `${selectedTeacher.subjects?.join(", ")} • ${selectedTeacher.phone}`
+                                                : "Davomat oladigan o'qituvchini tanlang"
+                                            }
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                                        {selectedTeacher ? selectedTeacher.fullName : "O'qituvchi tanlang"}
-                                    </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {selectedTeacher
-                                            ? `${selectedTeacher.subjects?.join(", ")} • ${selectedTeacher.phone}`
-                                            : "Davomat oladigan o'qituvchini tanlang"
-                                        }
-                                    </p>
-                                </div>
+                                <MdArrowDropDown className="text-2xl text-gray-500" />
                             </div>
-                            <MdArrowDropDown className="text-2xl text-gray-500" />
+                        </div>
+
+                        {/* Group Selection Card */}
+                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
+                            } ${!selectedTeacher ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => selectedTeacher && setShowGroupModal(true)}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
+                                        <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                                            {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {selectedGroup
+                                                ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
+                                                : selectedTeacher
+                                                    ? "Davomat oladigan guruhni tanlang"
+                                                    : "Avval o'qituvchi tanlang"
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                                <MdArrowDropDown className="text-2xl text-gray-500" />
+                            </div>
                         </div>
                     </div>
-
-                    {/* Group Selection Card */}
-                    <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
-                        } ${!selectedTeacher ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => selectedTeacher && setShowGroupModal(true)}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
-                                    <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                                        {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
-                                    </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {selectedGroup
-                                            ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
-                                            : selectedTeacher
-                                                ? "Davomat oladigan guruhni tanlang"
-                                                : "Avval o'qituvchi tanlang"
-                                        }
-                                    </p>
+                ) : (
+                    // TEACHER UCHUN FAQRAT GROUP SELECTION
+                    <div className="grid grid-cols-1 gap-4 mb-6">
+                        {/* Teacher Info Card (faqat teacher uchun) */}
+                        {isTeacher && selectedTeacher && (
+                            <div className="p-5 rounded-2xl border border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl">
+                                            <MdPerson className="text-2xl text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900 dark:text-white">
+                                                {selectedTeacher.fullName}
+                                            </h3>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                {selectedTeacher.subjects?.join(", ")} • {selectedTeacher.phone}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-sm font-medium">
+                                        Teacher
+                                    </span>
                                 </div>
                             </div>
-                            <MdArrowDropDown className="text-2xl text-gray-500" />
+                        )}
+
+                        {/* Group Selection Card (teacher uchun) */}
+                        <div className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedGroup
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
+                            }`}
+                            onClick={() => setShowGroupModal(true)}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl">
+                                        <MdGroup className="text-2xl text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                                            {selectedGroup ? getGroupDisplayName(selectedGroup) : "Guruh tanlang"}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {selectedGroup
+                                                ? `${selectedGroup.subject} • ${selectedGroup.roomNumber}-xona • ${selectedGroup.time}`
+                                                : "Davomat oladigan guruhni tanlang"
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                                <MdArrowDropDown className="text-2xl text-gray-500" />
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Xato xabari */}
+                {/* Error Message */}
                 {errorMessage && (
                     <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-800/30 rounded-2xl">
                         <div className="flex items-start gap-3">
@@ -406,7 +488,7 @@ export default function AttendancePage() {
                     </div>
                 )}
 
-                {/* Stats Cards - Only when group is selected and has students */}
+                {/* Stats Cards */}
                 {selectedGroup && students.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800/30 rounded-2xl p-5">
@@ -460,7 +542,7 @@ export default function AttendancePage() {
                 )}
             </div>
 
-            {/* Main Content - Attendance Area */}
+            {/* Main Content */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {!selectedGroup ? (
                     <div className="p-8 text-center">
@@ -470,19 +552,24 @@ export default function AttendancePage() {
                                 Davomat olishni boshlang
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                Davomat olish uchun yuqoridagi kartochkalardan avval o'qituvchi, keyin guruhni tanlang.
+                                {isTeacher
+                                    ? "Davomat olish uchun guruhni tanlang"
+                                    : "Davomat olish uchun avval o'qituvchi, keyin guruhni tanlang"
+                                }
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setShowTeacherModal(true)}
+                                        className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+                                    >
+                                        O'qituvchi tanlash
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => setShowTeacherModal(true)}
-                                    className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
-                                >
-                                    O'qituvchi tanlash
-                                </button>
-                                <button
-                                    onClick={() => selectedTeacher && setShowGroupModal(true)}
-                                    disabled={!selectedTeacher}
-                                    className={`px-5 py-3 rounded-xl font-medium transition-all ${selectedTeacher
+                                    onClick={() => setShowGroupModal(true)}
+                                    disabled={isAdmin && !selectedTeacher}
+                                    className={`px-5 py-3 rounded-xl font-medium transition-all ${(isTeacher || (isAdmin && selectedTeacher))
                                         ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800'
                                         : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                                         }`}
@@ -493,7 +580,6 @@ export default function AttendancePage() {
                         </div>
                     </div>
                 ) : errorMessage ? (
-                    // Guruhda o'quvchi yo'q bo'lsa
                     <div className="p-8 text-center">
                         <div className="max-w-md mx-auto">
                             <MdWarning className="text-6xl text-amber-500 dark:text-amber-400 mx-auto mb-6" />
@@ -501,7 +587,7 @@ export default function AttendancePage() {
                                 {selectedGroup.name} guruhida o'quvchi yo'q
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                Ushbu guruhda hech qanday o'quvchi ro'yxatdan o'tmagan. Davomat olish uchun avval guruhga o'quvchi qo'shing.
+                                Ushbu guruhda hech qanday o'quvchi ro'yxatdan o'tmagan.
                             </p>
                         </div>
                     </div>
@@ -522,7 +608,7 @@ export default function AttendancePage() {
                                             ⏰ {selectedGroup.time}
                                         </span>
                                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                                            👨‍🏫 {selectedTeacher.fullName}
+                                            👨‍🏫 {selectedTeacher?.fullName || user?.name}
                                         </span>
                                         <span className="text-sm text-gray-600 dark:text-gray-400">
                                             👥 {students.length} ta o'quvchi
@@ -601,7 +687,6 @@ export default function AttendancePage() {
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3">
-                                                            {console.log(student.student.image)}
                                                             {student.student.image ? (
                                                                 <img
                                                                     src={`${studentImgApi + student.student.image}`}
@@ -703,8 +788,8 @@ export default function AttendancePage() {
                 )}
             </div>
 
-            {/* Teacher Selection Modal */}
-            {showTeacherModal && (
+            {/* Teacher Selection Modal - FAQRAT ADMIN UCHUN */}
+            {showTeacherModal && isAdmin && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -759,7 +844,7 @@ export default function AttendancePage() {
                                                 setSelectedGroup(null);
                                                 setAttendance(null);
                                                 setStudents([]);
-                                                setErrorMessage(""); // Error messageni tozalash
+                                                setErrorMessage("");
                                                 setShowTeacherModal(false);
                                             }}
                                         >
@@ -797,10 +882,6 @@ export default function AttendancePage() {
                                                             {teacher.phone}
                                                         </span>
                                                     </p>
-
-                                                    <div className="flex items-center gap-2 mt-2">
-
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -813,7 +894,7 @@ export default function AttendancePage() {
             )}
 
             {/* Group Selection Modal */}
-            {showGroupModal && selectedTeacher && (
+            {showGroupModal && (isTeacher || (isAdmin && selectedTeacher)) && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -823,7 +904,10 @@ export default function AttendancePage() {
                                         Guruh tanlang
                                     </h2>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        O'qituvchi: {selectedTeacher.fullName}
+                                        {isTeacher
+                                            ? `O'qituvchi: ${user?.name}`
+                                            : `O'qituvchi: ${selectedTeacher?.fullName}`
+                                        }
                                     </p>
                                 </div>
                                 <button
