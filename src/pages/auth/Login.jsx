@@ -35,6 +35,7 @@ export default function Login() {
         container.appendChild(script);
 
         // Global callback funksiyasi
+        // Login.js - onTelegramAuth funksiyasi
         window.onTelegramAuth = async function (user) {
             console.log("Telegram user:", user);
             try {
@@ -46,15 +47,32 @@ export default function Login() {
                     avatar: user.photo_url || "",
                 };
 
-                // Tuzatilgan qism: login() chaqiriladi
-                const res = await login({ role: "teacher", telegramUser });
+                // ✅ Yangi endpoint manzili
+                const res = await login({
+                    role: "teacher",
+                    telegramUser
+                });
                 console.log("Login success:", res);
 
                 show({ type: "success", message: "Teacher xush kelibsiz!" });
-                navigate("/teacher");
+                navigate("/dashboard");
+
             } catch (err) {
                 console.error("Login error:", err);
-                show({ type: "error", message: err.response?.data?.message || "Telegram login failed" });
+
+                // Agar teacher tasdiqlanmagan bo'lsa
+                if (err.response?.status === 403) {
+                    show({
+                        type: "warning",
+                        message: "Admin tasdiqlashini kuting. Iltimos, keyinroq qayta urinib ko'ring.",
+                        duration: 5000
+                    });
+                } else {
+                    show({
+                        type: "error",
+                        message: err.response?.data?.message || "Telegram login failed"
+                    });
+                }
             }
         };
 
