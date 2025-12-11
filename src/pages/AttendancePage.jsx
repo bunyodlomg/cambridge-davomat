@@ -23,6 +23,8 @@ import { Link } from "react-router-dom";
 
 export default function AttendancePage() {
     const { user } = useContext(AuthContext); // Foydalanuvchi ma'lumotlarini olish
+    console.log(user);
+    
     const [teachers, setTeachers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
