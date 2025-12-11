@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
         if (role === "admin" || role === "superadmin") {
             res = await axiosInstance.post("/auth/admin-login", { email, password });
         } else if (role === "teacher") {
-            res = await axiosInstance.post("/auth/telegram-login", telegramUser);
+            res = await axiosInstance.post("/auth/teacher/login", telegramUser);
         } else {
             throw new Error("Invalid role for login");
         }
