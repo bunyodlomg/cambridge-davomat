@@ -8,7 +8,7 @@ import GroupModal from "./GroupModal";
 import GroupCard from "./GroupCard";
 import StatsCard from "./StatsCard";
 import StudentAddModal from "../Students/StudentAddModal";
-import { FaUserPlus } from "react-icons/fa";
+import { FaLayerGroup, FaUserPlus, FaUsers } from "react-icons/fa";
 
 export default function TeacherGroups() {
     const navigate = useNavigate();
@@ -431,16 +431,13 @@ export default function TeacherGroups() {
                     title="Guruhlar soni"
                     value={groups.length}
                     color="blue"
+                    icon={<FaLayerGroup />}
                 />
                 <StatsCard
                     title="Jami o'quvchilar"
                     value={totalStudents}
                     color="indigo"
-                />
-                <StatsCard
-                    title="O'rtacha o'quvchi"
-                    value={averageStudents}
-                    color="purple"
+                    icon={<FaUsers />}
                 />
             </div>
 

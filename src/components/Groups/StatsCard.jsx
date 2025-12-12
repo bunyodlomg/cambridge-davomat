@@ -1,6 +1,6 @@
 import React from "react";
 
-const StatsCard = ({ title, value, color = "blue" }) => {
+const StatsCard = ({ title, value, color = "blue", icon }) => {
     // Rang konfiguratsiyasi
     const colorConfigs = {
         blue: {
@@ -77,9 +77,7 @@ const StatsCard = ({ title, value, color = "blue" }) => {
             <div className="flex items-center gap-3">
                 <div className={`p-3 ${config.iconBg} ${config.darkIconBg} rounded-xl`}>
                     <div className={`w-6 h-6 ${config.iconColor}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0H21m-4.5 0H16m4.5 0h.008v.008h-.008V21zm-9 0h.008v.008H12V21z" />
-                        </svg>
+                        {icon}
                     </div>
                 </div>
                 <div>
