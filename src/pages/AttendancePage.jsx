@@ -77,88 +77,96 @@ export default function AttendancePage() {
         }
     };
 
-    const handleGroupSelect = async (group) => {
-        try {
-            setLoading(true);
-            setSelectedGroup(group);
-            setShowGroupModal(false);
-            setErrorMessage("");
+   const handleGroupSelect = async (group) => {
+    try {
+        setLoading(true);
+        setSelectedGroup(group);
+        setShowGroupModal(false);
+        setErrorMessage("");
 
-            if (!group.students || group.students.length === 0) {
-                setErrorMessage("Ushbu guruhda hech qanday o'quvchi yo'q. Iltimos, avval guruhga o'quvchi qo'shing.");
+        // To'liq guruh ma'lumotlarini olish
+        const groupRes = await axiosInstance.get(`/groups/${group._id}`);
+        const fullGroup = groupRes.data;
+
+        if (!fullGroup.students || fullGroup.students.length === 0) {
+            setErrorMessage("Ushbu guruhda hech qanday o'quvchi yo'q. Iltimos, avval guruhga o'quvchi qo'shing.");
+            setAttendance(null);
+            setStudents([]);
+            setLoading(false);
+            return;
+        }
+
+        // Davomatni olish yoki yaratish
+        const res = await axiosInstance.post("/Attendance", {
+            groupId: group._id,
+            date: date,
+        });
+
+        if (res.data.attendance) {
+            // Mavjud davomatni olish
+            let updatedStudents = [...res.data.attendance.students || []];
+
+            // Yangi qo'shilgan o'quvchilarni tekshirish
+            const allGroupStudentIds = new Set(fullGroup.students.map(s => s._id));
+            const attendanceStudentIds = new Set(updatedStudents.map(s => s.student._id));
+            const missingStudentIds = [...allGroupStudentIds].filter(id => !attendanceStudentIds.has(id));
+
+            if (missingStudentIds.length > 0) {
+                const missingStudents = fullGroup.students.filter(s =>
+                    missingStudentIds.includes(s._id)
+                );
+
+                missingStudents.forEach(missingStudent => {
+                    updatedStudents.push({
+                        student: missingStudent,
+                        status: "absent",
+                        arrivalTime: null,
+                        notes: "",
+                        isExcused: false,
+                        excuseReason: "",
+                        _id: `temp-${Date.now()}-${Math.random()}`
+                    });
+                });
+            }
+
+            setAttendance(res.data.attendance);
+            setStudents(updatedStudents);
+            setErrorMessage("");
+        } else {
+            // Yangi davomat yaratish
+            setAttendance(null);
+            setStudents(fullGroup.students.map(student => ({
+                student,
+                status: "absent",
+                arrivalTime: null,
+                notes: "",
+                isExcused: false,
+                excuseReason: "",
+            })));
+        }
+    } catch (error) {
+        let errorMsg = "Davomat olishda xatolik!";
+
+        if (error.response?.data?.message) {
+            errorMsg = error.response.data.message;
+
+            if (errorMsg.includes("Guruhda hech qanday o'quvchi yo'q") || 
+                errorMsg.includes("o'quvchi yo'q")) {
+                setErrorMessage(errorMsg);
                 setAttendance(null);
                 setStudents([]);
-                setLoading(false);
-                return;
             }
-
-            const res = await axiosInstance.post("/Attendance", {
-                groupId: group._id,
-                date: date,
-            });
-
-            if (res.data.attendance) {
-                let updatedStudents = [...res.data.attendance.students || []];
-
-                // Yangi qo'shilgan o'quvchilarni tekshirish
-                const allGroupStudentIds = new Set(group.students.map(s => s._id));
-                const attendanceStudentIds = new Set(updatedStudents.map(s => s.student._id));
-                const missingStudentIds = [...allGroupStudentIds].filter(id => !attendanceStudentIds.has(id));
-
-                if (missingStudentIds.length > 0) {
-                    const missingStudents = group.students.filter(s =>
-                        missingStudentIds.includes(s._id)
-                    );
-
-                    missingStudents.forEach(missingStudent => {
-                        updatedStudents.push({
-                            student: missingStudent,
-                            status: "absent",
-                            arrivalTime: null,
-                            notes: "",
-                            isExcused: false,
-                            excuseReason: "",
-                            _id: `temp-${Date.now()}-${Math.random()}`
-                        });
-                    });
-                }
-
-                setAttendance(res.data.attendance);
-                setStudents(updatedStudents);
-                setErrorMessage("");
-            } else {
-                setAttendance(null);
-                setStudents(group.students?.map(student => ({
-                    student,
-                    status: "absent",
-                    arrivalTime: null,
-                    notes: "",
-                    isExcused: false,
-                    excuseReason: "",
-                })) || []);
-            }
-        } catch (error) {
-            let errorMsg = "Davomat olishda xatolik!";
-
-            if (error.response?.data?.message) {
-                errorMsg = error.response.data.message;
-
-                if (errorMsg.includes("Guruhda hech qanday o'quvchi yo'q")) {
-                    setErrorMessage(errorMsg);
-                    setAttendance(null);
-                    setStudents([]);
-                }
-            }
-
-            show({
-                type: "error",
-                message: errorMsg,
-                duration: 5000
-            });
-        } finally {
-            setLoading(false);
         }
-    };
+
+        show({
+            type: "error",
+            message: errorMsg,
+            duration: 5000
+        });
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleStatusChange = (studentId, status) => {
         setStudents(prev => prev.map(student => {
